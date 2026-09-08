@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+.venv/
+.temp_browser_profile/
+.download_queue.json
+*.part
+build/
+dist/
+*.spec.bak
