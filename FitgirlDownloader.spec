@@ -6,7 +6,7 @@ a = Analysis(
     ["gui.py"],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[("assets/fitgirl.ico", "assets")],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
@@ -27,4 +27,5 @@ exe = EXE(
     strip=False,
     upx=True,
     console=False,
+    icon="assets/fitgirl.ico",
 )

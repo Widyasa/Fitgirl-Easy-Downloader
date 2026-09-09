@@ -89,6 +89,18 @@ class DownloadManager:
                 self._save()
                 return
 
+    def set_all_selected(self, selected):
+        for job in self.jobs:
+            job.selected = bool(selected)
+        self._save()
+
+    def clear_jobs(self):
+        if self._running:
+            raise RuntimeError("downloads are still running")
+        self.jobs.clear()
+        self.pauses.job_events.clear()
+        self._save()
+
     def _download(self, job, direct_url):
         output_path = os.path.join(self.output_dir, job.filename)
         pause_event = self.pauses.event_for(job.id)

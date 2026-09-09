@@ -1,6 +1,7 @@
 import asyncio
 import os
 import queue
+import sys
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -9,11 +10,19 @@ from downloader import DownloadManager
 from downloader.sources import extract_fuckingfast_links, fetch_fitgirl_links
 
 
+def resource_path(relative):
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, relative)
+
+
 class DownloaderApp:
     def __init__(self, root):
         self.root = root
         self.root.title("FitGirl Easy Downloader")
         self.root.geometry("1000x680")
+        icon = resource_path(os.path.join("assets", "fitgirl.ico"))
+        if os.path.isfile(icon):
+            self.root.iconbitmap(icon)
         self.events = queue.Queue()
         self.folder = tk.StringVar(value=os.path.abspath("downloads"))
         self.concurrency = tk.IntVar(value=3)
@@ -70,6 +79,8 @@ class DownloaderApp:
         actions.pack(fill="x")
         for text, command in [
             ("Toggle selected", self._toggle_selected),
+            ("Unselect all", self._unselect_all),
+            ("Clear links", self._clear_links),
             ("Start", self._start),
             ("Pause selected", self._pause_selected),
             ("Resume selected", self._resume_selected),
@@ -165,6 +176,29 @@ class DownloaderApp:
         for job_id in self._ids():
             job = next(job for job in self.manager.jobs if job.id == job_id)
             self.manager.set_selected(job_id, not job.selected)
+        self._refresh()
+
+    def _unselect_all(self):
+        self.manager.set_all_selected(False)
+        self._refresh()
+
+    def _clear_links(self):
+        if self.manager._running:
+            messagebox.showwarning(
+                "Downloads running", "Pause or finish downloads before clearing links."
+            )
+            return
+        if not self.manager.jobs:
+            return
+        if not messagebox.askyesno(
+            "Clear links",
+            "Remove every link from the queue?\nDownloaded files will not be deleted.",
+        ):
+            return
+        self.manager.clear_jobs()
+        self.source_url.set("")
+        self.links_text.delete("1.0", "end")
+        self._emit_log("Cleared all links from queue")
         self._refresh()
 
     def _start(self):

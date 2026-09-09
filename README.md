@@ -10,6 +10,8 @@ to download.
 - Persistent queue for 100+ parts with duplicate removal.
 - 1–10 parallel HTTP downloads (default: 3).
 - Per-file progress, pause/resume, file selection, and failure details.
+- Unselect all files or clear the queue when switching to another game;
+  downloaded files are never deleted by queue cleanup.
 - `Retry selected` and `Retry all failed`; completed files are not repeated.
 - Range resume through `.part` files, transfer retries, timeouts, size checks,
   safe Windows filenames, and atomic completion.
@@ -85,6 +87,8 @@ The repository stores build configuration, not generated binaries.
 ```
 
 Output: `dist\FitgirlEasyDownloader.exe`.
+The executable and GUI use the FitGirl site image from
+[`fitgirl-repacks.site`](https://fitgirl-repacks.site/icon/) as their icon.
 
 ## Troubleshooting
 

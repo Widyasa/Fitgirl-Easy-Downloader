@@ -130,6 +130,19 @@ class CoreTests(unittest.TestCase):
             self.assertEqual(failed.status, JobStatus.PENDING)
             self.assertEqual(done.status, JobStatus.COMPLETED)
 
+    def test_unselect_all_and_clear_queue(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = QueueStore(os.path.join(folder, "queue.json"))
+            manager = DownloadManager(folder, store=store)
+            manager.add_links(
+                ["https://fuckingfast.co/f/a", "https://fuckingfast.co/f/b"]
+            )
+            manager.set_all_selected(False)
+            self.assertTrue(all(not job.selected for job in manager.jobs))
+            manager.clear_jobs()
+            self.assertEqual(manager.jobs, [])
+            self.assertEqual(store.load(), [])
+
     def test_manager_processes_full_queue_with_concurrency_limit(self):
         with tempfile.TemporaryDirectory() as folder:
             manager = DownloadManager(
