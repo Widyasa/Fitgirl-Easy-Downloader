@@ -19,13 +19,17 @@ class DownloadManager:
         resolver_factory=None,
         on_update=None,
         logger=None,
+        browser_preference=None,
     ):
         self.output_dir = os.path.abspath(output_dir)
         self.concurrency = max(1, min(10, int(concurrency)))
         self.store = store or QueueStore()
         self.jobs = self.store.load()
+        self.browser_preference = browser_preference
         self.resolver_factory = resolver_factory or (
-            lambda: FuckingFastResolver(logger=self.log)
+            lambda: FuckingFastResolver(
+                logger=self.log, browser_preference=self.browser_preference
+            )
         )
         self.on_update = on_update or (lambda job: None)
         self.log = logger or (lambda message: None)

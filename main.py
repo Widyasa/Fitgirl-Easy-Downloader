@@ -2,7 +2,7 @@ import argparse
 import asyncio
 import os
 
-from downloader import DownloadManager, JobStatus
+from downloader import DownloadManager, JobStatus, resolve_browser
 from downloader.sources import extract_fuckingfast_links
 
 
@@ -20,6 +20,11 @@ def main():
     parser.add_argument("-i", "--input", default="input.txt")
     parser.add_argument("-o", "--output")
     parser.add_argument("-j", "--concurrency", type=int, default=3)
+    parser.add_argument(
+        "-b",
+        "--browser",
+        help="Chromium browser name or full .exe path (Chrome, Edge, Brave, ...)",
+    )
     args = parser.parse_args()
 
     try:
@@ -30,10 +35,17 @@ def main():
     if not links:
         parser.error(f"no FuckingFast links in {args.input}")
 
+    try:
+        browser = resolve_browser(args.browser)
+    except RuntimeError as exc:
+        parser.error(str(exc))
+    log(f"Browser: {browser.name} ({browser.path})")
+
     folder = args.output or choose_folder(os.path.join("downloads", "downloads"))
     manager = DownloadManager(
         folder,
         concurrency=args.concurrency,
+        browser_preference=browser.path,
         on_update=lambda job: log(
             f"[{job.status.value:11}] {job.filename}"
             + (f" - {job.error}" if job.error else "")

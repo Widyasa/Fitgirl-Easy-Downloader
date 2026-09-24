@@ -3,6 +3,8 @@ import json
 import os
 from urllib.parse import urlparse
 
+from .browsers import BrowserInfo, resolve_browser
+
 
 class Resolver:
     async def start(self):
@@ -16,18 +18,39 @@ class Resolver:
 
 
 class FuckingFastResolver(Resolver):
-    def __init__(self, profile_dir=".temp_browser_profile", logger=None):
-        self.profile_dir = os.path.abspath(profile_dir)
+    def __init__(
+        self,
+        profile_dir=".temp_browser_profile",
+        logger=None,
+        browser_preference=None,
+        browser_info: BrowserInfo | None = None,
+    ):
         self.logger = logger or (lambda message: None)
+        self.browser_preference = browser_preference
+        self.browser_info = browser_info
+        self.profile_dir = os.path.abspath(profile_dir)
         self.browser = None
         self.tab = None
 
     async def start(self):
         import nodriver as uc
 
+        info = self.browser_info or resolve_browser(self.browser_preference)
+        self.browser_info = info
+        slug = "".join(ch if ch.isalnum() else "_" for ch in info.name.lower())
+        self.profile_dir = os.path.abspath(
+            os.path.join(
+                os.path.dirname(self.profile_dir),
+                f".temp_browser_profile_{slug}",
+            )
+        )
+        os.makedirs(self.profile_dir, exist_ok=True)
+        self.logger(f"Using browser: {info.name} ({info.path})")
+
         self.browser = await uc.start(
             headless=False,
             user_data_dir=self.profile_dir,
+            browser_executable_path=info.path,
             browser_args=["--window-size=900,700", "--disable-popup-blocking"],
         )
         self.tab = await self.browser.get("about:blank")

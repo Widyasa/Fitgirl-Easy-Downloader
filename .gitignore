@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 .venv/
 .temp_browser_profile/
+.temp_browser_profile_*/
 .download_queue.json
 *.part
 build/

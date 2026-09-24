@@ -6,7 +6,7 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from downloader import DownloadManager
+from downloader import DownloadManager, discover_browsers, supported_browsers
 from downloader.sources import extract_fuckingfast_links, fetch_fitgirl_links
 
 
@@ -27,6 +27,14 @@ class DownloaderApp:
         self.folder = tk.StringVar(value=os.path.abspath("downloads"))
         self.concurrency = tk.IntVar(value=3)
         self.source_url = tk.StringVar()
+        self.browser_choice = tk.StringVar()
+        self._browsers = discover_browsers()
+        self._browser_by_label = {browser.label: browser for browser in self._browsers}
+        supported = supported_browsers()
+        if supported:
+            self.browser_choice.set(supported[0].label)
+        elif self._browsers:
+            self.browser_choice.set(self._browsers[0].label)
         self.manager = DownloadManager(
             self.folder.get(), on_update=self._emit_update, logger=self._emit_log
         )
@@ -56,6 +64,18 @@ class DownloaderApp:
             side="left", fill="x", expand=True, padx=6
         )
         ttk.Button(settings, text="Browse", command=self._browse).pack(side="left")
+        ttk.Label(settings, text="Browser").pack(side="left", padx=(12, 4))
+        self.browser_box = ttk.Combobox(
+            settings,
+            textvariable=self.browser_choice,
+            values=[browser.label for browser in self._browsers],
+            state="readonly",
+            width=28,
+        )
+        self.browser_box.pack(side="left")
+        ttk.Button(settings, text="Custom...", command=self._browse_browser).pack(
+            side="left", padx=(4, 0)
+        )
         ttk.Label(settings, text="Parallel").pack(side="left", padx=(12, 4))
         ttk.Spinbox(
             settings, from_=1, to=10, width=4, textvariable=self.concurrency
@@ -79,6 +99,7 @@ class DownloaderApp:
         actions.pack(fill="x")
         for text, command in [
             ("Toggle selected", self._toggle_selected),
+            ("Select all", self._select_all),
             ("Unselect all", self._unselect_all),
             ("Clear links", self._clear_links),
             ("Start", self._start),
@@ -169,6 +190,37 @@ class DownloaderApp:
         if folder:
             self.folder.set(folder)
 
+    def _browse_browser(self):
+        path = filedialog.askopenfilename(
+            title="Select Chromium browser executable",
+            filetypes=[("Executable", "*.exe"), ("All files", "*.*")],
+        )
+        if not path:
+            return
+        label = f"Custom ({os.path.basename(path)})"
+        from downloader.browsers import BrowserInfo
+
+        self._browser_by_label[label] = BrowserInfo(
+            "Custom", os.path.abspath(path), "chromium", True
+        )
+        values = list(self.browser_box["values"])
+        if label not in values:
+            values.append(label)
+            self.browser_box["values"] = values
+        self.browser_choice.set(label)
+
+    def _selected_browser_preference(self):
+        label = self.browser_choice.get()
+        browser = self._browser_by_label.get(label)
+        if browser is None:
+            return None
+        if not browser.supported:
+            raise RuntimeError(
+                f"{browser.name} is Firefox-based and cannot be automated. "
+                "Choose Chrome, Edge, Brave, Opera, Vivaldi, or Chromium."
+            )
+        return browser.path
+
     def _ids(self):
         return list(self.tree.selection())
 
@@ -176,6 +228,10 @@ class DownloaderApp:
         for job_id in self._ids():
             job = next(job for job in self.manager.jobs if job.id == job_id)
             self.manager.set_selected(job_id, not job.selected)
+        self._refresh()
+
+    def _select_all(self):
+        self.manager.set_all_selected(True)
         self._refresh()
 
     def _unselect_all(self):
@@ -204,8 +260,21 @@ class DownloaderApp:
     def _start(self):
         if getattr(self.manager, "_running", False):
             return
+        try:
+            preference = self._selected_browser_preference()
+        except RuntimeError as exc:
+            messagebox.showerror("Unsupported browser", str(exc))
+            return
+        if not preference and not supported_browsers():
+            messagebox.showerror(
+                "No browser",
+                "Install Chrome, Edge, Brave, Opera, Vivaldi, or Chromium. "
+                "Firefox and Zen Browser are not supported.",
+            )
+            return
         self.manager.output_dir = os.path.abspath(self.folder.get())
         self.manager.concurrency = max(1, min(10, self.concurrency.get()))
+        self.manager.browser_preference = preference
 
         def work():
             try:

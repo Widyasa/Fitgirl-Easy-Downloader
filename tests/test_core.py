@@ -69,6 +69,49 @@ class CoreTests(unittest.TestCase):
         resolver = FuckingFastResolver(".temp_browser_profile")
         self.assertTrue(os.path.isabs(resolver.profile_dir))
 
+    def test_classify_and_resolve_chromium_browsers(self):
+        from downloader.browsers import BrowserInfo, resolve_browser
+
+        chrome = BrowserInfo(
+            "Google Chrome",
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            "chromium",
+            True,
+        )
+        brave = BrowserInfo(
+            "Brave",
+            r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
+            "chromium",
+            True,
+        )
+        firefox = BrowserInfo(
+            "Mozilla Firefox",
+            r"C:\Program Files\Mozilla Firefox\firefox.exe",
+            "gecko",
+            False,
+        )
+        with patch(
+            "downloader.browsers.discover_browsers",
+            return_value=[chrome, brave, firefox],
+        ):
+            self.assertEqual(resolve_browser().name, "Google Chrome")
+            self.assertEqual(resolve_browser("Brave").name, "Brave")
+            with self.assertRaises(RuntimeError):
+                resolve_browser("Mozilla Firefox")
+            with self.assertRaises(RuntimeError):
+                resolve_browser("Zen Browser")
+
+    def test_resolve_browser_accepts_exe_path(self):
+        from downloader.browsers import resolve_browser
+
+        with tempfile.TemporaryDirectory() as folder:
+            fake = os.path.join(folder, "msedge.exe")
+            with open(fake, "wb") as handle:
+                handle.write(b"x")
+            picked = resolve_browser(fake)
+            self.assertEqual(picked.name, "Microsoft Edge")
+            self.assertTrue(picked.supported)
+
     def test_sanitizes_windows_filename(self):
         self.assertEqual(safe_filename('bad<>:"/\\|?*.bin'), "bad_________.bin")
 
@@ -139,6 +182,8 @@ class CoreTests(unittest.TestCase):
             )
             manager.set_all_selected(False)
             self.assertTrue(all(not job.selected for job in manager.jobs))
+            manager.set_all_selected(True)
+            self.assertTrue(all(job.selected for job in manager.jobs))
             manager.clear_jobs()
             self.assertEqual(manager.jobs, [])
             self.assertEqual(store.load(), [])
